@@ -15,11 +15,18 @@ const openai = new OpenAI({
 });
 
 // ================== GOOGLE SHEETS ==================
-const privateKey = Buffer.from(
-  process.env.GOOGLE_PRIVATE_KEY_BASE64,
-  "base64"
-).toString("utf-8");
+import creds from "./config/google-service-account.json" assert { type: "json" };
 
+const auth = new GoogleAuth({
+  credentials: {
+    client_email: creds.client_email,
+    private_key: creds.private_key,
+  },
+  scopes: ["https://www.googleapis.com/auth/spreadsheets"],
+});
+
+const SHEET_ID = process.env.GOOGLE_SHEET_ID;
+const doc = new GoogleSpreadsheet(SHEET_ID, auth);
 const auth = new GoogleAuth({
   credentials: {
     client_email: process.env.GOOGLE_CLIENT_EMAIL,
