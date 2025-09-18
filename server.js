@@ -6,7 +6,6 @@ import { GoogleAuth } from "google-auth-library";
 import OpenAI from "openai";
 
 dotenv.config();
-
 const app = express();
 
 /** ---------- LINE CONFIG ---------- **/
