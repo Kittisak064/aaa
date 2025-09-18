@@ -3,7 +3,10 @@ import { middleware, Client } from "@line/bot-sdk";
 import { GoogleSpreadsheet } from "google-spreadsheet";
 import { GoogleAuth } from "google-auth-library";
 import OpenAI from "openai";
-import creds from "./config/google-service-account.json" assert { type: "json" };
+import fs from "fs";
+
+// อ่าน service account จากไฟล์
+const creds = JSON.parse(fs.readFileSync("./config/google-service-account.json", "utf-8"));
 
 // ================== ENV ==================
 const config = {
