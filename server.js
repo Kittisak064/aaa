@@ -2,6 +2,7 @@ import express from "express";
 import { middleware, Client } from "@line/bot-sdk";
 import { GoogleSpreadsheet } from "google-spreadsheet";
 import { GoogleAuth } from "google-auth-library";
+import fs from "fs";
 import OpenAI from "openai";
 
 // ================== LINE CONFIG ==================
@@ -12,22 +13,23 @@ const config = {
 
 const client = new Client(config);
 
-// ================== OPENAI ==================
+// ================== OPENAI CONFIG ==================
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
-// ================== GOOGLE SHEETS ==================
-const privateKey = Buffer.from(
-  process.env.GOOGLE_PRIVATE_KEY_BASE64,
-  "base64"
-).toString("utf-8");
+// ================== GOOGLE SHEETS CONFIG ==================
+let googleCreds;
+const secretPath = "/etc/secrets/google-service-account.json";
+
+if (fs.existsSync(secretPath)) {
+  googleCreds = JSON.parse(fs.readFileSync(secretPath, "utf8"));
+} else {
+  throw new Error("❌ ไม่พบไฟล์ google-service-account.json");
+}
 
 const auth = new GoogleAuth({
-  credentials: {
-    client_email: process.env.GOOGLE_CLIENT_EMAIL,
-    private_key: privateKey,
-  },
+  credentials: googleCreds,
   scopes: ["https://www.googleapis.com/auth/spreadsheets"],
 });
 
@@ -53,7 +55,7 @@ async function loadSheetData() {
   return { sheet, products };
 }
 
-// ================== LINE WEBHOOK ==================
+// ================== EXPRESS APP ==================
 const app = express();
 
 app.post("/webhook", middleware(config), async (req, res) => {
@@ -65,6 +67,7 @@ app.post("/webhook", middleware(config), async (req, res) => {
     });
 });
 
+// ================== HANDLE EVENTS ==================
 async function handleEvent(event) {
   if (event.type !== "message" || event.message.type !== "text") {
     return Promise.resolve(null);
@@ -89,7 +92,8 @@ async function handleEvent(event) {
   if (matchedProduct) {
     replyText = `📌 ${matchedProduct.name}\n💰 ราคา: ${matchedProduct.price.toLocaleString()} บาท\nสนใจสั่งซื้อ แจ้งจำนวนได้เลยครับ`;
   } else if (userMessage.match(/ราคา|เท่าไร|กี่บาท/)) {
-    replyText = "รบกวนบอกรายละเอียดสินค้า เช่น น้ำพริกหรือรถเข็นรุ่นไหนครับ ✅";
+    replyText =
+      "รบกวนบอกรายละเอียดสินค้า เช่น น้ำพริกหรือรถเข็นรุ่นไหนครับ จะได้แจ้งราคาที่ถูกต้อง ✅";
   } else if (userMessage.match(/สั่งซื้อ|อยากได้|เอา/)) {
     replyText =
       "ยินดีครับ 🥰 รบกวนแจ้งชื่อ-ที่อยู่-เบอร์โทร และวิธีชำระ (โอน/ปลายทาง) เพื่อบันทึกออเดอร์นะครับ";
