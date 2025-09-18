@@ -1,6 +1,5 @@
 import express from "express";
 import { middleware, Client } from "@line/bot-sdk";
-import fetch from "node-fetch";
 import { GoogleSpreadsheet } from "google-spreadsheet";
 import { GoogleAuth } from "google-auth-library";
 import OpenAI from "openai";
@@ -37,10 +36,10 @@ async function loadSheetData() {
   const sheet = doc.sheetsByIndex[0];
   const rows = await sheet.getRows();
 
-  // สร้างฐานข้อมูลสินค้า
+  // 🔹 แปลงข้อมูลจากชีทเป็น object
   let products = {};
   rows.forEach((row) => {
-    products[row.รหัสสินค้า] = {
+    products[row["รหัสสินค้า"]] = {
       name: row["ชื่อสินค้า (ทางการ)"],
       price: parseFloat(row["ราคา"]),
       keywords: row["คำที่มักถูกเรียก (Alias Keywords)"]
@@ -60,7 +59,7 @@ app.post("/webhook", middleware(config), async (req, res) => {
   Promise.all(req.body.events.map(handleEvent))
     .then((result) => res.json(result))
     .catch((err) => {
-      console.error(err);
+      console.error("Webhook Error:", err);
       res.status(500).end();
     });
 });
@@ -73,7 +72,7 @@ async function handleEvent(event) {
   const userMessage = event.message.text.trim();
   const { products } = await loadSheetData();
 
-  // ตรวจสอบว่า user พูดถึงสินค้าไหน
+  // 🔹 หาสินค้าที่ตรงกับข้อความ
   let matchedProduct = null;
   for (const code in products) {
     if (
@@ -90,14 +89,13 @@ async function handleEvent(event) {
   if (matchedProduct) {
     replyText = `📌 ${matchedProduct.name}\n💰 ราคา: ${matchedProduct.price.toLocaleString()} บาท\nสนใจสั่งซื้อ แจ้งจำนวนได้เลยครับ`;
   } else if (userMessage.match(/ราคา|เท่าไร|กี่บาท/)) {
-    // ถามราคา แต่ไม่ระบุสินค้า
     replyText =
       "รบกวนบอกรายละเอียดสินค้า เช่น น้ำพริกหรือรถเข็นรุ่นไหนครับ จะได้แจ้งราคาที่ถูกต้อง ✅";
   } else if (userMessage.match(/สั่งซื้อ|อยากได้|เอา/)) {
     replyText =
       "ยินดีครับ 🥰 รบกวนแจ้งชื่อ-ที่อยู่-เบอร์โทร และวิธีชำระ (โอน/ปลายทาง) เพื่อบันทึกออเดอร์นะครับ";
   } else {
-    // ส่งต่อไป GPT ให้ช่วยตอบ (โดยบอก context)
+    // ส่งต่อ GPT ให้แต่งคำตอบ
     const systemPrompt = `
     คุณคือผู้ช่วยขายสินค้าและบริการของร้านนี้
     ใช้ข้อมูลจาก Google Sheet (สินค้า, ราคา, โปรโมชัน, การชำระเงิน, การรับประกัน)
@@ -124,5 +122,5 @@ async function handleEvent(event) {
 
 // ================== START SERVER ==================
 app.listen(process.env.PORT || 10000, () => {
-  console.log("Server is running");
+  console.log("✅ Server is running on port " + (process.env.PORT || 10000));
 });
