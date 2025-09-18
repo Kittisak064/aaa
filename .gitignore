@@ -1,15 +1,4 @@
-# Node.js
-node_modules/
-npm-debug.log
-yarn-error.log
-
-# Environment
+node_modules
 .env
-
-# Google Service Account JSON
-*.json
-
-# OS / Editor
-.DS_Store
-.vscode/
-.idea/
+config/google-service-account.json
+logs
