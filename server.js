@@ -1,35 +1,27 @@
 import express from "express";
 import { middleware, Client } from "@line/bot-sdk";
+import fetch from "node-fetch";
 import { GoogleSpreadsheet } from "google-spreadsheet";
 import { GoogleAuth } from "google-auth-library";
-import fs from "fs";
 import OpenAI from "openai";
+import creds from "./config/google-service-account.json" assert { type: "json" };
 
-// ================== LINE CONFIG ==================
+// ================== ENV ==================
 const config = {
   channelAccessToken: process.env.LINE_CHANNEL_ACCESS_TOKEN,
   channelSecret: process.env.LINE_CHANNEL_SECRET,
 };
 
-const client = new Client(config);
-
-// ================== OPENAI CONFIG ==================
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
-// ================== GOOGLE SHEETS CONFIG ==================
-let googleCreds;
-const secretPath = "/etc/secrets/google-service-account.json";
-
-if (fs.existsSync(secretPath)) {
-  googleCreds = JSON.parse(fs.readFileSync(secretPath, "utf8"));
-} else {
-  throw new Error("❌ ไม่พบไฟล์ google-service-account.json");
-}
-
+// ================== GOOGLE SHEETS ==================
 const auth = new GoogleAuth({
-  credentials: googleCreds,
+  credentials: {
+    client_email: creds.client_email,
+    private_key: creds.private_key,
+  },
   scopes: ["https://www.googleapis.com/auth/spreadsheets"],
 });
 
@@ -43,7 +35,7 @@ async function loadSheetData() {
 
   let products = {};
   rows.forEach((row) => {
-    products[row["รหัสสินค้า"]] = {
+    products[row.รหัสสินค้า] = {
       name: row["ชื่อสินค้า (ทางการ)"],
       price: parseFloat(row["ราคา"]),
       keywords: row["คำที่มักถูกเรียก (Alias Keywords)"]
@@ -55,8 +47,9 @@ async function loadSheetData() {
   return { sheet, products };
 }
 
-// ================== EXPRESS APP ==================
+// ================== LINE BOT ==================
 const app = express();
+const client = new Client(config);
 
 app.post("/webhook", middleware(config), async (req, res) => {
   Promise.all(req.body.events.map(handleEvent))
@@ -67,10 +60,9 @@ app.post("/webhook", middleware(config), async (req, res) => {
     });
 });
 
-// ================== HANDLE EVENTS ==================
 async function handleEvent(event) {
   if (event.type !== "message" || event.message.type !== "text") {
-    return Promise.resolve(null);
+    return null;
   }
 
   const userMessage = event.message.text.trim();
